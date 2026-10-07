@@ -27,6 +27,10 @@ const songSchema = new mongoose.Schema({
     type: String,
     required: true,
   },
+  playCount: {
+    type: Number,
+    default: 0,
+  },
 });
 
 const songModel = mongoose.model("Song", songSchema);

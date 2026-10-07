@@ -1,5 +1,12 @@
 import { v2 as cloudinary } from "cloudinary";
 import songModel from "../models/songModel.js";
+import {
+  CACHE_KEYS,
+  getCachedJson,
+  setCachedJson,
+  invalidateCatalogCache,
+  INSTANCE_ID,
+} from "../config/redis.js";
 
 const addSong = async (req, res) => {
   try {
@@ -25,11 +32,13 @@ const addSong = async (req, res) => {
       file: audioUpload.secure_url,
       image: imageUpload.secure_url,
       duration,
+      playCount: 0,
     };
 
     console.log(songData);
     const song = songModel(songData);
     await song.save();
+    await invalidateCatalogCache();
     res.status(201).json({ message: "Song added successfully", success: true });
   } catch (error) {
     console.error(error);
@@ -39,8 +48,26 @@ const addSong = async (req, res) => {
 
 const listSong = async (req, res) => {
   try {
+    const cached = await getCachedJson(CACHE_KEYS.SONGS);
+    if (cached) {
+      res.setHeader("X-Cache", "HIT");
+      return res.status(200).json({
+        songs: cached,
+        success: true,
+        cache: "HIT",
+        instanceId: INSTANCE_ID,
+      });
+    }
+
     const allSongs = await songModel.find({});
-    res.status(200).json({songs: allSongs, success: true});
+    await setCachedJson(CACHE_KEYS.SONGS, allSongs);
+    res.setHeader("X-Cache", "MISS");
+    res.status(200).json({
+      songs: allSongs,
+      success: true,
+      cache: "MISS",
+      instanceId: INSTANCE_ID,
+    });
   } catch (error) {
     console.log(error);
     res.status(500).json({ message: "Error retrieving songs" });
@@ -50,6 +77,7 @@ const listSong = async (req, res) => {
 const removeSong = async (req, res) => {
   try {
     await songModel.findByIdAndDelete(req.body.id);
+    await invalidateCatalogCache();
     res.status(200).json({ message: "Song removed successfully", success: true });
   } catch (error) {
     res.status(500).json({ message: "Error removing song" });

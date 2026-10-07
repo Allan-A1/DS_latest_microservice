@@ -36,6 +36,7 @@ const DisplayHome = () => {
               desc={song.desc}
               image={song.image}
               id={song._id}
+              playCount={song.playCount || 0}
             />
           ))}
         </div>

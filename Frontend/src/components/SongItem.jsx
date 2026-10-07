@@ -1,7 +1,7 @@
 import React, { useContext } from "react";
 import { PlayerContext } from "../context/PlayerContext";
 
-const SongItem = ({ name, image, desc, id }) => {
+const SongItem = ({ name, image, desc, id, playCount = 0 }) => {
   const { playWithId } = useContext(PlayerContext);
 
   return (
@@ -12,6 +12,7 @@ const SongItem = ({ name, image, desc, id }) => {
       <img src={image} className="rounded" />
       <p className="font-bold mt-2 mb-1">{name}</p>
       <p className="text-slate-200 txt-sm">{desc}</p>
+      <p className="text-xs text-green-400 mt-1">{playCount} plays</p>
     </div>
   );
 };

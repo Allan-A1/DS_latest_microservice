@@ -16,8 +16,12 @@ A full-stack Spotify clone built using the MERN (MongoDB, Express.js, React.js, 
 
 - **Frontend:** React.js
 - **Backend:** Node.js, Express.js
-- **Database:** MongoDB
+- **Database:** MongoDB Atlas (replica set, majority write concern)
+- **Cache / queue:** Redis (list cache + play-event stream)
+- **Gateway:** Nginx (round-robin over two API replicas)
 - **File Storage:** Cloudinary
+
+Distributed-systems explanation and reviewer demo: [REVIEWER_GUIDE.md](REVIEWER_GUIDE.md) (short command sheet: [DS_DEMO.md](DS_DEMO.md)).
 
 ## 📦 Installation
 
@@ -50,16 +54,29 @@ CLOUDINARY_NAME=
 CLOUDINARY_API_KEY=
 CLOUDINARY_API_SECRET=
 MONGODB_URI=
+REDIS_URL=redis://localhost:6379
+INSTANCE_ID=local
 ```
 
-5. Start the application
-```bash
-# Start backend (from backend directory)
-npm run start
+5. Start the distributed backend (from the `Spotify-Clone` folder). Stop anything already using port 3000.
 
-# Start frontend (from frontend directory)
+```bash
+docker compose up --build
+```
+
+6. Start the UIs
+
+```bash
+# Frontend
+cd Frontend
+npm run dev
+
+# Admin (another terminal)
+cd admin
 npm run dev
 ```
+
+Single-process backend without Docker: `cd Backend && npm run start` (and `npm run worker` if Redis is local). Full demo script: [DS_DEMO.md](DS_DEMO.md).
 
 ## 🔧 Configuration
 
