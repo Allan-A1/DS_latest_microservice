@@ -1,6 +1,7 @@
 services:
   redis:
     image: redis:7-alpine
+    container_name: spotify-redis
     ports:
       - "6379:6379"
     healthcheck:
@@ -8,49 +9,120 @@ services:
       interval: 5s
       timeout: 3s
       retries: 10
+    restart: unless-stopped
+
+  redpanda:
+    image: docker.redpanda.com/redpandadata/redpanda:v24.2.1
+    container_name: spotify-redpanda
+    command:
+      - redpanda
+      - start
+      - --kafka-addr
+      - internal://0.0.0.0:29092,external://0.0.0.0:9092
+      - --advertise-kafka-addr
+      - internal://redpanda:29092,external://localhost:9092
+      - --mode
+      - dev-container
+      - --smp
+      - "1"
+      - --memory
+      - 512M
+    ports:
+      - "9092:9092"
+      - "9644:9644"
+    healthcheck:
+      test: ["CMD-SHELL", "rpk cluster info || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    restart: unless-stopped
+
+  redpanda-console:
+    image: docker.redpanda.com/redpandadata/console:v2.7.2
+    container_name: spotify-redpanda-console
+    environment:
+      KAFKA_BROKERS: "redpanda:29092"
+    ports:
+      - "8080:8080"
+    depends_on:
+      redpanda:
+        condition: service_healthy
+    restart: unless-stopped
 
   api1:
     build: ./Backend
+    container_name: spotify-api1
     env_file:
       - ./Backend/.env
     environment:
       PORT: 3000
       INSTANCE_ID: api1
       REDIS_URL: redis://redis:6379
+      KAFKA_BROKERS: redpanda:29092
     depends_on:
       redis:
+        condition: service_healthy
+      redpanda:
         condition: service_healthy
     restart: unless-stopped
 
   api2:
     build: ./Backend
+    container_name: spotify-api2
     env_file:
       - ./Backend/.env
     environment:
       PORT: 3000
       INSTANCE_ID: api2
       REDIS_URL: redis://redis:6379
+      KAFKA_BROKERS: redpanda:29092
     depends_on:
       redis:
         condition: service_healthy
+      redpanda:
+        condition: service_healthy
     restart: unless-stopped
 
-  worker:
+  worker1:
     build: ./Backend
+    container_name: spotify-worker1
     command: node worker.js
     env_file:
       - ./Backend/.env
     environment:
-      INSTANCE_ID: worker
+      INSTANCE_ID: worker-1
       WORKER_ID: worker-1
       REDIS_URL: redis://redis:6379
+      KAFKA_BROKERS: redpanda:29092
     depends_on:
       redis:
+        condition: service_healthy
+      redpanda:
+        condition: service_healthy
+    restart: unless-stopped
+
+  worker2:
+    build: ./Backend
+    container_name: spotify-worker2
+    command: node worker.js
+    env_file:
+      - ./Backend/.env
+    environment:
+      INSTANCE_ID: worker-2
+      WORKER_ID: worker-2
+      REDIS_URL: redis://redis:6379
+      KAFKA_BROKERS: redpanda:29092
+    depends_on:
+      redis:
+        condition: service_healthy
+      redpanda:
         condition: service_healthy
     restart: unless-stopped
 
   nginx:
     image: nginx:1.27-alpine
+    container_name: spotify-nginx
     ports:
       - "3000:80"
     volumes:

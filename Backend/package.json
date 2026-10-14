@@ -19,6 +19,7 @@
     "dotenv": "^16.4.5",
     "express": "^4.21.1",
     "ioredis": "^5.11.1",
+    "kafkajs": "^2.2.4",
     "mongoose": "^8.8.0",
     "multer": "^1.4.5-lts.1",
     "nodemon": "^3.1.7"

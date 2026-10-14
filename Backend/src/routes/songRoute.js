@@ -2,6 +2,7 @@ import {
   addSong,
   listSong,
   removeSong,
+  getTrendingSongs,
 } from "../controllers/songController.js";
 import express from "express";
 import upload from "../middleware/multer.js";
@@ -17,6 +18,8 @@ songRouter.post(
   addSong
 );
 songRouter.get("/list", listSong);
+songRouter.get("/trending", getTrendingSongs);
 songRouter.post("/remove", removeSong);
 
 export default songRouter;
+

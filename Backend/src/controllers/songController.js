@@ -6,6 +6,7 @@ import {
   setCachedJson,
   invalidateCatalogCache,
   INSTANCE_ID,
+  getTopTrendingSongIds,
 } from "../config/redis.js";
 
 const addSong = async (req, res) => {
@@ -82,6 +83,52 @@ const removeSong = async (req, res) => {
   } catch (error) {
     res.status(500).json({ message: "Error removing song" });
   }
-}
+};
 
-export { addSong, listSong, removeSong };
+const getTrendingSongs = async (req, res) => {
+  try {
+    const rawScores = await getTopTrendingSongIds(10);
+    if (!rawScores || rawScores.length === 0) {
+      const topMongo = await songModel.find({}).sort({ playCount: -1 }).limit(5);
+      return res.status(200).json({
+        success: true,
+        source: "mongodb-fallback",
+        instanceId: INSTANCE_ID,
+        trending: topMongo.map((s) => ({ song: s, score: s.playCount || 0 })),
+      });
+    }
+
+    const leaderboardItems = [];
+    const songIds = [];
+    for (let i = 0; i < rawScores.length; i += 2) {
+      const songId = rawScores[i];
+      const score = Number(rawScores[i + 1]);
+      songIds.push(songId);
+      leaderboardItems.push({ songId, score });
+    }
+
+    const songs = await songModel.find({ _id: { $in: songIds } });
+    const songMap = new Map(songs.map((s) => [s._id.toString(), s]));
+
+    const trending = leaderboardItems
+      .filter((item) => songMap.has(item.songId))
+      .map((item) => ({
+        song: songMap.get(item.songId),
+        trendingScore: item.score,
+      }));
+
+    res.status(200).json({
+      success: true,
+      source: "redis-leaderboard",
+      instanceId: INSTANCE_ID,
+      count: trending.length,
+      trending,
+    });
+  } catch (error) {
+    console.error("Error retrieving trending songs:", error);
+    res.status(500).json({ success: false, message: "Error retrieving trending songs" });
+  }
+};
+
+export { addSong, listSong, removeSong, getTrendingSongs };
+
